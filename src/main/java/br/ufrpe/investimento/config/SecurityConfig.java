@@ -32,6 +32,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Cotações são públicas (não expõem dado de usuário nenhum)
                         .requestMatchers(HttpMethod.GET, "/cotacoes/**").permitAll()
+                        .requestMatchers(
+                                "/swagger-ui/**", "/swagger-ui.html",
+                                "/v3/api-docs/**", "/v3/api-docs.yaml"
+                        ).permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtValidacaoFilter, UsernamePasswordAuthenticationFilter.class);
