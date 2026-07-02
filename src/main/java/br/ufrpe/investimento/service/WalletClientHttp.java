@@ -2,6 +2,7 @@ package br.ufrpe.investimento.service;
 
 import br.ufrpe.investimento.exception.ServicoExternoException;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
@@ -38,9 +39,15 @@ public class WalletClientHttp implements WalletClient {
             UUID idReserva = UUID.fromString(resposta.get("idReserva").toString());
             return new ReservaSaldo(true, idReserva, null);
 
-        } catch (HttpClientErrorException.PaymentRequired | HttpClientErrorException.Conflict ex) {
-            // Convenção assumida: o Wallet Service retorna 402/409 quando o saldo é insuficiente
-            return new ReservaSaldo(false, null, "Saldo insuficiente");
+        } catch (HttpClientErrorException ex) {
+            // Convenção assumida: o Wallet Service retorna 402 (Payment Required) ou
+            // 409 (Conflict) quando o saldo é insuficiente. PAYMENT_REQUIRED não tem
+            // uma subclasse dedicada no Spring (só Conflict, NotFound, etc. têm),
+            // por isso checamos o status manualmente em vez de usar catch por tipo.
+            if (ex.getStatusCode() == HttpStatus.PAYMENT_REQUIRED || ex.getStatusCode() == HttpStatus.CONFLICT) {
+                return new ReservaSaldo(false, null, "Saldo insuficiente");
+            }
+            throw new ServicoExternoException("Wallet Service retornou erro inesperado ao reservar saldo: " + ex.getStatusCode(), ex);
         } catch (RestClientException ex) {
             throw new ServicoExternoException("Não foi possível comunicar com o Wallet Service para reservar saldo", ex);
         }
