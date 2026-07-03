@@ -25,9 +25,14 @@ public class RabbitMQConfig {
     private static final String DLX_ORDENS = "investimento.ordens.dlx";
     public static final String QUEUE_ORDEM_EXECUTADA = "fila.ordem.executada";
 
+//    @Bean
+//    public Queue queueOrdemExecutada() {
+//        return QueueBuilder.durable(QUEUE_ORDEM_EXECUTADA).build();
+//    }
+
     @Bean
-    public Queue queueOrdemExecutada() {
-        return QueueBuilder.durable(QUEUE_ORDEM_EXECUTADA).build();
+    public Queue filaOrdemExecutada() {
+        return new Queue("fila.ordem.executada", false);
     }
 
     @Bean
