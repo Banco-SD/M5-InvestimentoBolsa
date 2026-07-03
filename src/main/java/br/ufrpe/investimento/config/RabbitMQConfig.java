@@ -1,14 +1,17 @@
 package br.ufrpe.investimento.config;
 
 import org.springframework.amqp.core.*;
+import org.springframework.amqp.rabbit.annotation.EnableRabbit;
+import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
+@EnableRabbit
 public class RabbitMQConfig {
 
     public static final String EXCHANGE_ORDENS = "investimento.ordens.exchange";
@@ -20,6 +23,12 @@ public class RabbitMQConfig {
     // cai aqui em vez de ser perdida ou reprocessada pra sempre.
     private static final String DLQ_ORDENS = "investimento.ordens.processamento.dlq";
     private static final String DLX_ORDENS = "investimento.ordens.dlx";
+    public static final String QUEUE_ORDEM_EXECUTADA = "fila.ordem.executada";
+
+    @Bean
+    public Queue queueOrdemExecutada() {
+        return QueueBuilder.durable(QUEUE_ORDEM_EXECUTADA).build();
+    }
 
     @Bean
     public TopicExchange exchangeOrdens() {
@@ -56,7 +65,7 @@ public class RabbitMQConfig {
 
     @Bean
     public MessageConverter jsonMessageConverter() {
-        return new Jackson2JsonMessageConverter();
+        return new JacksonJsonMessageConverter();
     }
 
     @Bean
@@ -64,5 +73,20 @@ public class RabbitMQConfig {
         RabbitTemplate template = new RabbitTemplate(connectionFactory);
         template.setMessageConverter(jsonMessageConverter);
         return template;
+    }
+
+    // Container factory usada pelos @RabbitListener. Sem isso, uma exceção
+    // não tratada no listener fica sendo reenfileirada pra sempre em vez de
+    // cair na DLQ configurada acima.
+    @Bean
+    public SimpleRabbitListenerContainerFactory rabbitListenerContainerFactory(
+            ConnectionFactory connectionFactory,
+            MessageConverter jsonMessageConverter
+    ) {
+        SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
+        factory.setConnectionFactory(connectionFactory);
+        factory.setMessageConverter(jsonMessageConverter);
+        factory.setDefaultRequeueRejected(false);
+        return factory;
     }
 }
